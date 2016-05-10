@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>New Chat</title>
+
+<link rel="stylesheet" type="text/css" href="js/jScrollPane/jScrollPane.css" />
+<link rel="stylesheet" type="text/css" href="/css/page.css" />
+<link rel="stylesheet" type="text/css" href="css/chat.css" />
+<style type="text/css">
+</style>
+</head>
+
+<body>
+
+<!-- <div id="chatContainer"> -->
+
+    <div id="chatTopBar" class="rounded"></div>
+    <div id="chatLineHolder"></div>
+    <div id="flightNumber" style="display:none"></div>
+    
+    <div id="chatUsers" class="rounded"></div>
+    <div id="chatBottomBar" class="rounded">
+    	<div class="tip"></div>
+                
+        <div id="loginDiv">                
+        <input id="name" name="name" class="rounded" maxlength="16" type="text" value="abc"/>
+        <input id="email" name="email" class="rounded" type="text" value="psantwani@gmail.com"/>
+        <input type="submit" class="blueButton" value="Login" id="loginBtn" />
+        </div>
+
+        <div id="messageDiv" style="display:none">                
+        <input id="chatText" name="chatText" class="rounded" maxlength="255" />
+        <input type="submit" class="blueButton" value="Submit" id="chatBtn" />
+        </div>
+        
+    </div>
+    
+<!-- </div> -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+
+<script>
+var myname = "";
+var friend = "";
+var chatbox = document.getElementById('chatLineHolder');
+var chatUsers = document.getElementById('chatUsers'); 
+var polling;
+//var server = "localhost:9000";
+var server = "localhost:9000"
+
+    document.getElementById('loginBtn').onclick = function(){
+        var xhttp = new XMLHttpRequest();
+        
+        xhttp.onreadystatechange = function() {
+        if (xhttp.readyState == 4 && xhttp.status == 200) {                
+                var response = xhttp.responseText;                        
+                pseudo_name = JSON.parse(response).pseudo_name;  
+                $("#flightNumber").html(JSON.parse(response).flightNumber);            
+                $("#chatTopBar").html("<p>Public chat : "+pseudo_name+"</p>");
+                myname = pseudo_name;
+                $("#loginDiv").fadeOut();        
+                $("#messageDiv").fadeIn();                  
+                showUsers();
+                polling = setInterval(function(){ 
+                    readMessages(); }, 1000);                   
+            }
+        };        
+        var params = "email_id=" + document.getElementById('email').value + "&PNR=" + document.getElementById('name').value;
+        xhttp.open("GET", "http://"+server+"/login?" + params, true);
+        xhttp.send();
+    }    
+
+    document.getElementById('chatBtn').onclick = function(){
+
+        var xhttp = new XMLHttpRequest();
+        var message = "";
+        var status = $("#chatTopBar").html();
+        if(status.indexOf("Public chat") != -1){
+            xhttp.onreadystatechange = function() {
+        if (xhttp.readyState == 4 && xhttp.status == 200) {                
+                var response = xhttp.responseText;                                
+                console.log(response);
+                chatbox.innerHTML = "";
+                readMessages();
+            }
+        };
+        //xhttp.open("GET", "http://localhost:9000/store", true);        
+        var params = "flightNumber=" + document.getElementById('flightNumber').innerHTML + "&pseudo_name=" + myname + "&message=" + document.getElementById('chatText').value;
+        console.log(params);
+        xhttp.open("GET", "http://"+server+"/store?" + params, true);
+        xhttp.send();
+        }
+        else if(status.indexOf("Private chat") != -1){
+              xhttp.onreadystatechange = function() {
+        if (xhttp.readyState == 4 && xhttp.status == 200) {                
+                var response = xhttp.responseText;                                
+                console.log(response);
+                chatbox.innerHTML = "";
+                readPrivateMessages();
+            }
+        };        
+        var params = "flightNumber=" + document.getElementById('flightNumber').innerHTML + "&fromUser=" + myname + "&toUser=" + friend + "&message=" + document.getElementById('chatText').value;
+        console.log(params);
+        xhttp.open("GET", "http://"+server+"/storePrivate?" + params, true);                
+        xhttp.send();
+        }
+
+        
+    }
+
+    var messageCount = 0;
+    function readMessages(){        
+        var xhttp = new XMLHttpRequest();
+        var message = "";
+        var chatbox = document.getElementById('chatLineHolder');
+        
+        xhttp.onreadystatechange = function() {
+
+        if (xhttp.readyState == 4 && xhttp.status == 200) {                
+                var response = xhttp.responseText;                                
+                messages = JSON.parse(response);                
+                if(messages.length > messageCount){
+                    chatbox.innerHTML = "";
+                    for(var i = 0 ; i < messages.length; i++){
+                    message  = "";
+                    message  += "<p>" + messages[i].pseudo_name + "  " +  messages[i].sentTime + "</p>";
+                    message  += "<p>" + messages[i].message  + "</br><br>";
+                    chatbox.innerHTML = chatbox.innerHTML + message;
+                }
+                }
+                messageCount = messages.length;
+                
+            }
+        };
+        
+        var params = "flightNumber=" + document.getElementById('flightNumber').innerHTML;
+        xhttp.open("GET", "http://"+server+"/readpublic?" + params, true);
+        xhttp.send();
+    }    
+
+    function showUsers(){ // No polling for this right now        
+        var xhttp = new XMLHttpRequest();
+        var message = "";
+        
+        
+        xhttp.onreadystatechange = function() {
+
+        if (xhttp.readyState == 4 && xhttp.status == 200) {                
+                var response = xhttp.responseText;                                
+                messages = JSON.parse(response);                
+                   chatUsers.innerHTML += chatUsers.innerHTML + "<p>Flight Passengers</p><br><ul><li class = 'privateMember' style='list-style-type:none'><a href= '#' onclick='createPrivateSession(this)'>All</a></li>";                  
+                    for(var i = 0 ; i < messages.length; i++){        
+                        
+                        message  += "<li class = 'privateMember' style='list-style-type:none'><a href= '#' onclick='createPrivateSession(this)'>" + messages[i].pseudo_name + "</a></li>";                    
+                        
+                    }
+                    chatUsers.innerHTML = chatUsers.innerHTML + message;                                
+                    chatUsers.innerHTML = chatUsers.innerHTML + "</ul>";  
+                
+                
+            }
+        };
+        //xhttp.open("GET", "http://localhost:9000/readpublic", true);
+        xhttp.open("GET", "http://"+server+"/getallusers", true);
+        xhttp.send();
+    }
+
+    function readPrivateMessages(){
+       var xhttp = new XMLHttpRequest();
+        var message = "";
+        var chatbox = document.getElementById('chatLineHolder');
+        
+        xhttp.onreadystatechange = function() {
+
+        if (xhttp.readyState == 4 && xhttp.status == 200) {                
+                var response = xhttp.responseText;                                
+                messages = JSON.parse(response);                
+                if(messages.length > messageCount){
+                    chatbox.innerHTML = "";
+                    for(var i = 0 ; i < messages.length; i++){
+                    message  = "";
+                    message  += "<p>" + messages[i].fromUser + "  " +  messages[i].sentTime + "</p>";
+                    message  += "<p>" + messages[i].message  + "</br><br>";
+                    chatbox.innerHTML = chatbox.innerHTML + message;
+                }
+                }
+                messageCount = messages.length;
+                
+            }
+        };
+         var params = "flightNumber=" + document.getElementById('flightNumber').innerHTML + "&fromUser=" + myname + "&toUser=" + friend ;        
+        xhttp.open("GET", "http://"+server+"/readprivate?" + params, true);
+        xhttp.send();
+    }
+
+   function createPrivateSession(el){  
+   clearInterval(polling);
+    chatbox.innerHTML = "";        
+    var yourname = el.innerHTML; 
+    friend = yourname;  
+    messageCount = 0; 
+    if(yourname == "All"){
+        
+        $("#chatTopBar").html("<p>Public chat : " + myname + "</p>"); 
+        polling = setInterval(function(){ 
+                    readMessages(); }, 1000);  
+    }
+    else{
+        $("#chatTopBar").html("<p>Private chat : " + myname + " and " + yourname + "</p>");
+        polling = setInterval(function(){ 
+                    readPrivateMessages(); }, 1000);  
+    }            
+   }
+</script>
+
+</body>
+</html>
